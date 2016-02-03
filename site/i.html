@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>COVERMANIA :: ARKZIN</title>
+  <meta name="description" content="minimalistic interface for http://monoskop.org/Arkzin">
+  <meta name="author" content="klemo">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="grid"></div>
+  <div class="overlay">
+    <div id="active"></div>
+    <div id="hovered"></div>
+  </div>
+  <div id="popup" class="hidden">
+    <img src="" name="" page=""/>
+  </div>
+  <script type="text/x-template" id="cover-grid-tmpl">
+    <div class="cell" rel="<%= name %>" pages="<%= pages %>" type="cover">
+      <img src="d/<%= name %>/s-0.gif" class="cover" />
+      <img src="d/<%= name %>/0.gif" class="gif hidden" />
+    </div>
+  </script>
+  <script type="text/x-template" id="page-grid-tmpl">
+    <div class="cell" rel="<%= name %>" type="page" page="<%= page %>">
+      <img src="d/<%= name %>/s-<%= page %>.gif"/>
+    </div>
+  </script>
+  <script type="text/x-template" id="footer-tmpl">
+    <% for(var i = 0; i < active.length; i++ ) { %>
+     <div>
+       <a href="#" class="active-link" rel="<%= active[i] %>">
+         <%= active[i] %>
+       </a>
+     </div>
+   <% } %>
+  </script>
+  <!-- <script type="application/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script> -->
+  <!-- <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script> -->
+  <script type="application/javascript" src="js/underscore-min.js"></script>
+  <script type="application/javascript" src="js/jquery-1.11.3.min.js"></script>
+  <script type="application/javascript" src="js/core.js"></script>
+</body>
+</html>
