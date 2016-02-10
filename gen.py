@@ -4,6 +4,7 @@ This module hanles extraction of images from PDF documents.
 
 import argparse
 import os
+import logging
 import shutil
 import uuid
 import subprocess
@@ -12,6 +13,8 @@ import random
 import multiprocessing
 import glob
 import json
+import re
+import cPickle
 
 SIZES = {
     's': '50x72',
@@ -128,7 +131,7 @@ def create_gif(path_dir, num_pages, size):
     )
 
     
-def generate_metadata(path):
+def generate_metadata(path, out='file'):
     '''
     Generate metadata with all pdf files and corresponding num pages
     '''
@@ -140,9 +143,44 @@ def generate_metadata(path):
             pdf = pyPdf.PdfFileReader(fin)
             num_pages = pdf.getNumPages()
             data.append({'name': name, 'pages': num_pages})
-    with open('data.json', 'w') as fw:
-        fw.write(json.dumps(data))
+    if out == 'file':
+        print('writing data.json')
+        with open('data.json', 'w') as fw:
+            fw.write(json.dumps(data))
+    return data
 
+        
+def construct_word_lookup(path):
+    '''
+    1. Extracts text (OCR) from large (xl) images
+    '''
+    documents = generate_metadata(path, out=None)
+    print('found {} documents'.format(len(documents)))
+    words = {}
+    for document in documents:
+        print document
+        for f in glob.glob(document['name'] + '/xl-*.png'):
+            match = re.search('.*xl-(\d+).png', f)
+            if match:
+                page = match.groups()[0]
+                command = 'tesseract ' + f + ' -l hrv stdout'
+                print command
+                text = subprocess.check_output(command, shell=True)
+                for word in text.split():
+                    if word in words:
+                        document_dict = words[word]
+                        if document['name'] in document_dict:
+                            pages_set = words[word][document['name']]
+                            pages_set.add(page)
+                            words[word][document['name']] = pages_set
+                        else:
+                            words[word][document['name']] = set(page)
+                    else:
+                        # init word
+                        words[word] = {document['name']: set(page)}
+    return words
+    
+            
 
 def process_file(f):
     '''
@@ -177,6 +215,11 @@ if __name__ == '__main__':
             generate_metadata(args.i)
         elif args.c == 'gen':
             process_file(args.i)
+        elif args.c == 'lookup':
+            words = construct_word_lookup(args.i)
+            with open('words.pickle', 'w') as f:
+                cPickle.dump(words, f)
+            import ipdb; ipdb.set_trace()
         elif args.c == 'all':
             # get all pdf files in current dir and process
             files = [f for f in os.listdir(args.i) if f.endswith('.pdf')]
