@@ -2,6 +2,10 @@
 This module hanles extraction of images from PDF documents.
 '''
 
+import gevent
+from gevent import monkey; monkey.patch_all()
+from gevent.subprocess import Popen, PIPE
+
 import argparse
 import os
 import logging
@@ -66,6 +70,10 @@ def extract_images(inpath, out_dir=None, tmp=False, size='s'):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
+    single_page = ''
+    if num_pages == 1:
+        single_page = '-0'
+
     # extract images from pdf
     print('extracting {} [{}] pages to: {}'.format(
         num_pages, size, out_dir))
@@ -78,11 +86,12 @@ def extract_images(inpath, out_dir=None, tmp=False, size='s'):
          inpath,
          '-quality', str(IMG_QUALITY),
          '-sharpen', IMG_SHARPEN,
-         os.path.join(out_dir, size) + '.png',
+         os.path.join(out_dir, size) + single_page + '.png',
      ])
 
     return out_dir, num_pages
 
+    
 def resize(path, num_images, in_size, out_size):
     '''
     Take all images (total of num_images) in directory path where name matches:
@@ -149,6 +158,34 @@ def generate_metadata(path, out='file'):
             fw.write(json.dumps(data))
     return data
 
+
+def get_doc_index(document, filepath):
+    words = {}
+    command = 'tesseract ' + filepath + ' -l hrv stdout'
+    #text = subprocess.check_output(command, shell=True)
+    sub = Popen([command], stdout=PIPE, shell=True)
+    text, err = sub.communicate()
+    # extract page num from file path
+    match = re.search('.*xl-(\d+).png', filepath)
+    if match:
+        page = int(match.groups()[0])
+    for word in text.strip().split():
+        # skip small words
+        if len(word) <= 2:
+            continue
+        if word in words:
+            document_dict = words[word]
+            if document['name'] in document_dict:
+                pages_set = words[word][document['name']]
+                pages_set.add(page)
+                words[word][document['name']] = pages_set
+            else:
+                words[word][document['name']] = set([page])
+        else:
+            # init word
+            words[word] = {document['name']: set([page])}
+    return words
+    
         
 def construct_word_lookup(path):
     '''
@@ -158,35 +195,18 @@ def construct_word_lookup(path):
     print('found {} documents'.format(len(documents)))
     words = {}
     for document in documents:
-        print document
-        for f in glob.glob(document['name'] + '/xl-*.png'):
-            match = re.search('.*xl-(\d+).png', f)
-            if match:
-                page = match.groups()[0]
-                command = 'tesseract ' + f + ' -l hrv stdout'
-                print command
-                text = subprocess.check_output(command, shell=True)
-                for word in text.split():
-                    if word in words:
-                        document_dict = words[word]
-                        if document['name'] in document_dict:
-                            pages_set = words[word][document['name']]
-                            pages_set.add(page)
-                            words[word][document['name']] = pages_set
-                        else:
-                            words[word][document['name']] = set(page)
-                    else:
-                        # init word
-                        words[word] = {document['name']: set(page)}
+         files = [f for f in glob.glob(os.path.join(
+             path, document['name'] + '/xl-*.png'))]
+         jobs = [gevent.spawn(get_doc_index, document, f) for f in files]
+         gevent.joinall(jobs)
+         print [job.value for job in jobs]
     return words
     
-            
 
 def process_file(f):
     '''
     Extracts thumbnails, large images and creates gif
     '''
-    print('>>>>> ' + f)
     # extract large images from input pdf
     out_dir, num_pages = extract_images(f, size='xl')
     # make thumbnails
@@ -194,7 +214,6 @@ def process_file(f):
     resize(out_dir, num_pages, 'xl', 'l')
     # create gif from small images
     create_gif(out_dir, num_pages, 's',)
-    print('<<<<< ' + f)
     
                 
 if __name__ == '__main__':
@@ -219,14 +238,11 @@ if __name__ == '__main__':
             words = construct_word_lookup(args.i)
             with open('words.pickle', 'w') as f:
                 cPickle.dump(words, f)
-            import ipdb; ipdb.set_trace()
         elif args.c == 'all':
             # get all pdf files in current dir and process
-            files = [f for f in os.listdir(args.i) if f.endswith('.pdf')]
-            num_processes = 2
-            pool = multiprocessing.Pool(processes=num_processes)
-            res = pool.map_async(process_file, files)
-            res.wait()
+            for f in os.listdir(args.i):
+                if f.endswith('.pdf'):
+                    process_file(os.path.join(args.i, f))
             generate_metadata(args.i)
     else:
         print('missing params')
