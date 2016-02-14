@@ -5,15 +5,16 @@ $( document ).ready(function() {
         'page-grid': _.template($('#page-grid-tmpl').text().trim()),
         'footer': _.template($('#footer-tmpl').text().trim()),
     };
+
+    //var DATA_URL = 'https://klemo.memoryoftheworld.org/covermania/site/d/';
+    var DATA_URL = 'd/';
     
     var DOCUMENTS = [
         {'name': 'arkzin_I_0', 'pages': 16},
-        {'name': 'arkzin_I_1', 'pages': 20},
-        
+        {'name': 'arkzin_I_1', 'pages': 20},        
         {'name': 'arkzin_I_2-3', 'pages': 28},
         {'name': 'arkzin_I_4', 'pages': 28},
-        {'name': 'arkzin_I_5-6', 'pages': 36},
-        
+        {'name': 'arkzin_I_5-6', 'pages': 36},        
         
         {'name': 'arkzin_II_1', 'pages': 20},
         {'name': 'arkzin_II_2', 'pages': 24},
@@ -152,7 +153,7 @@ $( document ).ready(function() {
 
     var _load_popup = function(name, page) {
         var img = '#popup img';
-        $(img).attr('src', 'd/' + name + '/l-' + page + '.gif');
+        $(img).attr('src', DATA_URL + name + '/l-' + page + '.gif');
         $(img).attr('name', name);
         $(img).attr('page', page);
     };
@@ -215,7 +216,8 @@ $( document ).ready(function() {
                 var htext = name;
                 if (type == 'cover') {
                     $(this).find('.cover').hide();
-                    $(this).find('.gif').attr('src', 'd/' + name + '/0.gif').show();   
+                    $(this).find('.gif').attr(
+                        'src', DATA_URL + name + '/0.gif').show();   
                 } else if (type == 'page') {
                     var page = $(this).attr('page');
                     htext = name + '(' + page + ')'
