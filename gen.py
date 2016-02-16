@@ -40,7 +40,7 @@ def extract_images(inpath, out_dir=None, tmp=False, size='s'):
     Reads inpath[.pdf] and extracts series of images that correspond to
     pages from the given document
     '''
-    
+
     if not os.path.exists(inpath):
         raise IOError('does not exist: {}'.format(inpath))
 
@@ -66,7 +66,7 @@ def extract_images(inpath, out_dir=None, tmp=False, size='s'):
             # dir name equals input file name
             name, ext = os.path.splitext(inpath)
             out_dir = name
-            
+
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -91,13 +91,13 @@ def extract_images(inpath, out_dir=None, tmp=False, size='s'):
 
     return out_dir, num_pages
 
-    
+
 def resize(path, num_images, in_size, out_size):
     '''
     Take all images (total of num_images) in directory path where name matches:
 
         in_size-i.png (0<=i<num_images)
-    
+
     and generate total of num_images resized images with name:
 
         out_size-i.gif (0<=i<num_images)
@@ -112,7 +112,7 @@ def resize(path, num_images, in_size, out_size):
                  os.path.join(path, '{}-{}.gif'.format(out_size, i)),
              ])
 
-            
+
 def create_gif(path_dir, num_pages, size):
     '''
     Generate gif from images in path_dir. Take num_pages images of given size.
@@ -134,12 +134,12 @@ def create_gif(path_dir, num_pages, size):
     subprocess.call(
         ['convert',
          '-delay', str(GIF_DELAY),
-         '-loop', '0'] + 
-         images_path + 
+         '-loop', '0'] +
+         images_path +
          [os.path.join(path_dir, '0.gif')]
     )
 
-    
+
 def generate_metadata(path, out='file'):
     '''
     Generate metadata with all pdf files and corresponding num pages
@@ -163,8 +163,10 @@ def get_doc_index(document, filepath):
     words = {}
     command = 'tesseract ' + filepath + ' -l hrv stdout'
     #text = subprocess.check_output(command, shell=True)
+    print '>>> ', command
     sub = Popen([command], stdout=PIPE, shell=True)
     text, err = sub.communicate()
+    print '>>> ', command, 'DONE'
     # extract page num from file path
     match = re.search('.*xl-(\d+).png', filepath)
     if match:
@@ -184,9 +186,9 @@ def get_doc_index(document, filepath):
         else:
             # init word
             words[word] = {document['name']: set([page])}
-    return words
-    
-        
+    return len(words)
+
+
 def construct_word_lookup(path):
     '''
     1. Extracts text (OCR) from large (xl) images
@@ -195,13 +197,14 @@ def construct_word_lookup(path):
     print('found {} documents'.format(len(documents)))
     words = {}
     for document in documents:
-         files = [f for f in glob.glob(os.path.join(
-             path, document['name'] + '/xl-*.png'))]
-         jobs = [gevent.spawn(get_doc_index, document, f) for f in files]
-         gevent.joinall(jobs)
-         print [job.value for job in jobs]
+        print document['name']
+        files = [f for f in glob.glob(os.path.join(
+            path, document['name'] + '/xl-*.png'))]
+        jobs = [gevent.spawn(get_doc_index, document, f) for f in files]
+        gevent.joinall(jobs)
+        print [job.value for job in jobs]
     return words
-    
+
 
 def process_file(f):
     '''
@@ -214,8 +217,8 @@ def process_file(f):
     resize(out_dir, num_pages, 'xl', 'l')
     # create gif from small images
     create_gif(out_dir, num_pages, 's',)
-    
-                
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--i',
